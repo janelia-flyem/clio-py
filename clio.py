@@ -1,6 +1,10 @@
 import os
 import os.path
+import sys
+import time
+
 import requests
+import jwt
 
 CLIO_STORE_URL = {
     'prod': 'https://clio-store-vwzoicitea-uk.a.run.app',
@@ -29,7 +33,7 @@ def get_clio_token():
     """Returns a long-lived FlyEM token, possibly from local cached file"""
     if os.path.exists(TOKEN_CACHE_FILE):
         with open(TOKEN_CACHE_FILE, 'r') as f:
-            return f.read()
+            flyem_token = f.read()
     else:
         user_token = get_identity_token()
         r = requests.post(CLIO_TOKEN_URL, headers = {'Authorization': f'Bearer {user_token}'})
@@ -39,9 +43,26 @@ def get_clio_token():
         flyem_token = r.text.strip('"')
         with open(TOKEN_CACHE_FILE, 'w') as f:
             f.write(flyem_token)
-        return flyem_token
+    return flyem_token
+    
 
 flyem_token = get_clio_token()
+if flyem_token is not None:
+    decoded = jwt.decode(flyem_token, algorithms=['HS256'], options={"verify_signature": False})
+    if 'exp' not in decoded:
+        print(f"FlyEM token doesn't have exp field so it is invalid: {decoded}")
+        sys.exit(1)
+    time_left = int(decoded['exp']) - int(time.time())
+    if time_left < 60 * 60 * 4:
+        print(f"Time left before expiration of FlyEM Token is < 4 hours.  Refreshing.")
+        if os.path.exists(TOKEN_CACHE_FILE):
+            os.remove(TOKEN_CACHE_FILE)
+        flyem_token = get_clio_token()
+
+if flyem_token is None:
+    print("Unable to get long-lived FlyEM Token. Exiting.")
+    sys.exit(1)
+     
 
 def clio_url(store: str, endpoint: str) -> str:
     if store not in CLIO_STORE_URL:
