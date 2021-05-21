@@ -11,7 +11,8 @@ CLIO_STORE_URL = {
     'test': 'https://clio-test-7fdj77ed7q-uk.a.run.app'
 }
 CLIO_ENDPOINTS = {
-    'vnc-annotations-query': 'json-annotations/VNC/neurons/query'
+    'vnc-annotations-query': 'json-annotations/VNC/neurons/query',
+    'vnc-annotations-post': 'annotations/VNC'
 }
 
 CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
@@ -45,10 +46,14 @@ def get_clio_token():
             f.write(flyem_token)
     return flyem_token
     
-
+user_email = None
 flyem_token = get_clio_token()
 if flyem_token is not None:
     decoded = jwt.decode(flyem_token, algorithms=['HS256'], options={"verify_signature": False})
+    if 'email' not in decoded:
+        print(f"FlyEM token doesn't have email field so it is invalid: {decoded}")
+        sys.exit(1)
+    user_email = decoded['email']
     if 'exp' not in decoded:
         print(f"FlyEM token doesn't have exp field so it is invalid: {decoded}")
         sys.exit(1)
