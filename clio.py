@@ -10,10 +10,6 @@ CLIO_STORE_URL = {
     'prod': 'https://clio-store-vwzoicitea-uk.a.run.app',
     'test': 'https://clio-test-7fdj77ed7q-uk.a.run.app'
 }
-CLIO_ENDPOINTS = {
-    'vnc-annotations-query': 'json-annotations/VNC/neurons/query',
-    'vnc-annotations-post': 'annotations/VNC'
-}
 
 CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
 TOKEN_CACHE_FILE = 'flyem_token.json'
@@ -72,9 +68,7 @@ if flyem_token is None:
 def clio_url(store: str, endpoint: str) -> str:
     if store not in CLIO_STORE_URL:
         raise Exception(f'"{store}" is not a valid store. Use "prod" or "test"')
-    if endpoint not in CLIO_ENDPOINTS:
-        raise Exception(f'No endpoint available for "{endpoint}"')
-    return CLIO_STORE_URL[store] + "/v2/" + CLIO_ENDPOINTS[endpoint]
+    return CLIO_STORE_URL[store] + "/v2/" + endpoint
 
 def post(store: str, endpoint: str, json_payload: dict = None, str_payload: str = None):
     if json_payload:
