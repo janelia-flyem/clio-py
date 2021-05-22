@@ -2,6 +2,7 @@ import os
 import os.path
 import sys
 import time
+import datetime
 
 import requests
 import jwt
@@ -14,34 +15,32 @@ CLIO_STORE_URL = {
 CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
 TOKEN_CACHE_FILE = 'flyem_token.json'
 
-def get_identity_token() -> str:
-    """Returns a Google identity token using installed gcloud or manual input"""
-    try:
-        user_token = os.popen("gcloud auth print-identity-token").read()
-    except:
-        print("Unable to get identity token from gcloud.  Is it installed?")
-        print("Switching to manual entering of token from command line.")
-        print("Copy and paste token from clio.janelia.org User Settings page.")
-        print("This can be avoided by installing the Google gcloud utility.\n")
-        user_token = input("Enter your user identity token: ")
-    return user_token.rstrip()
-
 def get_clio_token():
     """Returns a long-lived FlyEM token, possibly from local cached file"""
     if os.path.exists(TOKEN_CACHE_FILE):
         with open(TOKEN_CACHE_FILE, 'r') as f:
             flyem_token = f.read()
     else:
-        user_token = get_identity_token()
-        r = requests.post(CLIO_TOKEN_URL, headers = {'Authorization': f'Bearer {user_token}'})
-        if r.status_code != 200:
-            print(f"unable to retrieve long-lived FlyEM token: {r.text}")
-            return None
-        flyem_token = r.text.strip('"')
+        try:
+            user_token = os.popen("gcloud auth print-identity-token").read().rstrip()
+            r = requests.post(CLIO_TOKEN_URL, headers = {'Authorization': f'Bearer {user_token}'})
+            if r.status_code != 200:
+                print(f'Bad request to get ClioStore Token: {r.content}')
+                raise Exception()
+            flyem_token = r.text.strip('"')
+        except Exception as e:
+            print(f"Unable to get clio token via gcloud / server request: {e}")
+            print("Switching to manual entering of token from command line.")
+            print("Copy & paste ClioStore Token from clio.janelia.org settings page.\n")
+            flyem_token = input("Enter the ClioStore/DVID Token: ")
+            flyem_token = flyem_token.rstrip()
+
         with open(TOKEN_CACHE_FILE, 'w') as f:
             f.write(flyem_token)
+
     return flyem_token
-    
+
+# Make sure that we won't have expiration too quickly, else do auto-refresh of FlyEM Token.
 user_email = None
 flyem_token = get_clio_token()
 if flyem_token is not None:
